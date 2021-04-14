@@ -1,12 +1,9 @@
-#older version
-
 import dbcreds
 import mariadb
 from flask import Flask, request, Response
 from flask_cors import CORS
 import json
 import secrets
-from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
@@ -36,9 +33,10 @@ def users():
             cursor = conn.cursor()
             cursor.execute("INSERT INTO users (email, username, password) VALUES (?, ?, ?)", [email, username, password])
             conn.commit()
-            userId = cursor.lastrowid
+            id = cursor.lastrowid
             loginToken = secrets.token_hex(16)
-            cursor.execute("INSERT INTO user_sessions (id, loginToken) VALUES (?, ?)", [userId, loginToken])
+            # loginToken = "2f8bd59c91996110d6b800acba79bf89"
+            cursor.execute("INSERT INTO user_sessions (id, loginToken) VALUES (?, ?)", [id, loginToken])
             conn.commit()
             nr_of_rows = cursor.rowcount
         except Exception as error1:
@@ -49,9 +47,10 @@ def users():
             if conn != None:
                 conn.rollback()
                 conn.close()
-            if nr_of_rows != -1:    #if there are no rows, cursor.rowcount returns -1
+            if nr_of_rows != -1:    #nr_of_rows != None removed        #if there are no rows, cursor.rowcount returns -1
                 returnedData = {
-                    "userId": userId,
+                    "nr": nr_of_rows,
+                    "id": id,
                     "email": email,
                     "username": username,
                     "loginToken": loginToken
@@ -71,6 +70,7 @@ def users():
 
     elif request.method == "GET":    #users
         try:
+            # userId = request.json.get("id")
             loginToken = request.json.get("loginToken")
             conn = mariadb.connect(
                 host = dbcreds.host, 
@@ -93,16 +93,16 @@ def users():
                 conn.rollback()
                 conn.close()
             if table_rows != None:
-                task_list = []
+                row_list = []
                 for table_row in table_rows:
-                    task_dictionary = {
-                        "userId": userId,
+                    row_dictionary = {
+                        "id": userId,
                         "email": table_row[0],
                         "username": table_row[1]
                     }
-                    task_list.append(task_dictionary)
+                    row_list.append(row_dictionary)
                 return Response(
-                    json.dumps(task_list, default = str), 
+                    json.dumps(row_list, default = str), 
                     mimetype = "application/json", 
                     status = 200
                 )
@@ -142,7 +142,7 @@ def users():
             nr_of_rows = cursor.rowcount
             if nr_of_rows > -1:
                 cursor.execute("SELECT email, username FROM users WHERE id = ?", [userId])
-                table_row = cursor.fetchone()
+                table_rows = cursor.fetchone()
         except Exception as error1:
             print("There was an error: " + error1)
         finally:
@@ -151,11 +151,11 @@ def users():
             if conn != None:
                 conn.rollback()
                 conn.close()
-            if table_row != None:
+            if table_rows != None:
                 returnedData = {
-                    "userId": userId,
-                    "email": table_row[0],
-                    "username": table_row[1]
+                    "id": userId,
+                    "email": table_rows[0],
+                    "username": table_rows[1]
                 }
                 return Response(
                     json.dumps(returnedData, default = str), 
@@ -239,9 +239,9 @@ def login():
             )
             cursor = conn.cursor()
             cursor.execute("SELECT id, email, username, password FROM users WHERE email = ? AND password = ?", [email, password])
-            table_row = cursor.fetchone()
-            userId = table_row[0]
-            if table_row != None:
+            table_rows = cursor.fetchone()
+            userId = table_rows[0]
+            if table_rows != None:
                 loginToken = secrets.token_hex(16)
                 cursor.execute("INSERT INTO user_sessions (id, loginToken) VALUES (?, ?)", [userId, loginToken])
                 conn.commit()
@@ -258,9 +258,9 @@ def login():
                 conn.close()
             if nr_of_rows != None and nr_of_rows != -1:
                 returnedData = {
-                    "userId": table_row[0],
-                    "email": table_row[1],
-                    "username": table_row[2],
+                    "id": table_rows[0],
+                    "email": table_rows[1],
+                    "username": table_rows[2],
                     "loginToken": loginToken
                 }
                 return Response(
@@ -321,7 +321,7 @@ def login():
 
 
 
-@app.route("/api/one-time-tasks", methods = ["POST", "GET", "PATCH", "DELETE"])
+@app.route("/api/tasks", methods = ["POST", "GET", "PATCH", "DELETE"])
 def one_time_tasks():
     conn = None
     cursor = None
@@ -356,7 +356,7 @@ def one_time_tasks():
                 conn.close()
             if nr_of_rows != None and nr_of_rows != -1:
                 returnedData = {
-                    "taskId": taskId,
+                    "id": taskId,
                     "userId": userId,
                     "content": content,
                 }
@@ -403,7 +403,7 @@ def one_time_tasks():
                 task_list = []
                 for table_row in table_rows:
                     task_dictionary = {
-                        "taskId": table_row[0],
+                        "id": table_row[0],
                         "userId": userId,
                         "content": table_row[1]
                     }
@@ -423,7 +423,7 @@ def one_time_tasks():
 
     elif request.method == "PATCH":    #one-time
         try:
-            taskId = request.json.get("taskId")    #each taskId corresponds to only one user
+            taskId = request.json.get("id")    #each taskId corresponds to only one user
             content = request.json.get("content")
             # loginToken = request.json.get("loginToken")    #users can see and edit only their own tasks
             conn = mariadb.connect(
@@ -449,7 +449,7 @@ def one_time_tasks():
                 conn.close()
             if nr_of_rows != None and nr_of_rows != -1:
                 returnedData = {
-                    "taskId": taskId,
+                    "id": taskId,
                     "content": content
                 }
                 return Response(
@@ -468,7 +468,7 @@ def one_time_tasks():
     elif request.method == "DELETE":    #one-time
         try:
             loginToken = request.json.get("loginToken")
-            taskId = request.json.get("taskId")
+            taskId = request.json.get("id")
             conn = mariadb.connect(
                 host = dbcreds.host, 
                 port = dbcreds.port, 
