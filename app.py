@@ -1,3 +1,5 @@
+#older version
+
 import dbcreds
 import mariadb
 from flask import Flask, request, Response
@@ -35,8 +37,8 @@ def users():
             cursor.execute("INSERT INTO users (email, username, password) VALUES (?, ?, ?)", [email, username, password])
             conn.commit()
             userId = cursor.lastrowid
-            login_token = secrets.token_hex(16)
-            cursor.execute("INSERT INTO user_sessions (id, login_token) VALUES (?, ?)", [userId, login_token])
+            loginToken = secrets.token_hex(16)
+            cursor.execute("INSERT INTO user_sessions (id, loginToken) VALUES (?, ?)", [userId, loginToken])
             conn.commit()
             nr_of_rows = cursor.rowcount
         except Exception as error1:
@@ -47,12 +49,12 @@ def users():
             if conn != None:
                 conn.rollback()
                 conn.close()
-            if nr_of_rows != None and nr_of_rows != -1:    #if there are no rows, cursor.rowcount returns -1
+            if nr_of_rows != -1:    #if there are no rows, cursor.rowcount returns -1
                 returnedData = {
                     "userId": userId,
                     "email": email,
                     "username": username,
-                    "login_token": login_token
+                    "loginToken": loginToken
                 }
                 return Response(
                     json.dumps(returnedData, default = str), 
@@ -69,7 +71,7 @@ def users():
 
     elif request.method == "GET":    #users
         try:
-            login_token = request.json.get("login_token")
+            loginToken = request.json.get("loginToken")
             conn = mariadb.connect(
                 host = dbcreds.host, 
                 port = dbcreds.port, 
@@ -78,7 +80,7 @@ def users():
                 database = dbcreds.database
             )
             cursor = conn.cursor()
-            cursor.execute("SELECT id FROM user_sessions WHERE login_token = ?", [login_token])
+            cursor.execute("SELECT id FROM user_sessions WHERE loginToken = ?", [loginToken])
             userId = cursor.fetchone()[0]
             cursor.execute("SELECT email, username FROM users WHERE id = ?", [userId])
             table_rows = cursor.fetchall()
@@ -117,7 +119,7 @@ def users():
             email = request.json.get("email")
             username = request.json.get("username")
             password = request.json.get("password")
-            login_token = request.json.get("login_token")
+            loginToken = request.json.get("loginToken")
             conn = mariadb.connect(
                 host = dbcreds.host, 
                 port = dbcreds.port, 
@@ -126,7 +128,7 @@ def users():
                 database = dbcreds.database
             )
             cursor = conn.cursor()
-            cursor.execute("SELECT id FROM user_sessions WHERE login_token = ?", [login_token])
+            cursor.execute("SELECT id FROM user_sessions WHERE loginToken = ?", [loginToken])
             userId = cursor.fetchone()[0]
             if email != None:
                 cursor.execute("UPDATE users SET email = ? WHERE id = ?", [email, userId])
@@ -170,7 +172,7 @@ def users():
 
     elif request.method == "DELETE":    #users
         try:
-            login_token = request.json.get("login_token")
+            loginToken = request.json.get("loginToken")
             conn = mariadb.connect(
                 host = dbcreds.host, 
                 port = dbcreds.port, 
@@ -179,7 +181,7 @@ def users():
                 database = dbcreds.database
             )
             cursor = conn.cursor()
-            cursor.execute("SELECT id FROM user_sessions WHERE login_token = ?", [login_token])
+            cursor.execute("SELECT id FROM user_sessions WHERE loginToken = ?", [loginToken])
             userId = cursor.fetchone()[0]
             cursor.execute("DELETE FROM user_sessions WHERE id = ?", [userId])
             conn.commit()
@@ -240,8 +242,8 @@ def login():
             table_row = cursor.fetchone()
             userId = table_row[0]
             if table_row != None:
-                login_token = secrets.token_hex(16)
-                cursor.execute("INSERT INTO user_sessions (id, login_token) VALUES (?, ?)", [userId, login_token])
+                loginToken = secrets.token_hex(16)
+                cursor.execute("INSERT INTO user_sessions (id, loginToken) VALUES (?, ?)", [userId, loginToken])
                 conn.commit()
                 nr_of_rows = cursor.rowcount
             else:
@@ -259,7 +261,7 @@ def login():
                     "userId": table_row[0],
                     "email": table_row[1],
                     "username": table_row[2],
-                    "login_token": login_token
+                    "loginToken": loginToken
                 }
                 return Response(
                     json.dumps(returnedData, default = str), 
@@ -276,7 +278,7 @@ def login():
 
     elif request.method == "DELETE":    #login
         try:
-            login_token = request.json.get("login_token")
+            loginToken = request.json.get("loginToken")
             conn = mariadb.connect(
                 host = dbcreds.host, 
                 port = dbcreds.port, 
@@ -285,7 +287,7 @@ def login():
                 database = dbcreds.database
             )
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM user_sessions WHERE login_token = ?", [login_token])
+            cursor.execute("DELETE FROM user_sessions WHERE loginToken = ?", [loginToken])
             conn.commit()
             nr_of_rows = cursor.rowcount
         except Exception as error1:
@@ -298,7 +300,7 @@ def login():
                 conn.close()
             if nr_of_rows != None and nr_of_rows != -1:
                 return Response(
-                    "You have signed out. Thank you for using Task Managerer.", 
+                    "You have signed out. Thank you for using Task Manager.", 
                     mimetype = "html/text", 
                     status = 200
                 )
@@ -328,7 +330,7 @@ def one_time_tasks():
     
     if request.method == "POST":
         try:
-            login_token = request.json.get("login_token")
+            loginToken = request.json.get("loginToken")
             content = request.json.get("content")
             conn = mariadb.connect(
                 host = dbcreds.host, 
@@ -338,7 +340,7 @@ def one_time_tasks():
                 database = dbcreds.database
             )
             cursor = conn.cursor()
-            cursor.execute("SELECT id FROM user_sessions WHERE login_token = ?", [login_token])
+            cursor.execute("SELECT id FROM user_sessions WHERE loginToken = ?", [loginToken])
             userId = cursor.fetchone()[0]
             cursor.execute("INSERT INTO one_time_tasks (userId, content) VALUES (?, ?)", [userId, content])
             conn.commit()
@@ -373,7 +375,7 @@ def one_time_tasks():
 
     elif request.method == "GET":    #one-time
         try:
-            login_token = request.json.get("login_token")
+            loginToken = request.json.get("loginToken")
             conn = mariadb.connect(
                 host = dbcreds.host, 
                 port = dbcreds.port, 
@@ -382,7 +384,7 @@ def one_time_tasks():
                 database = dbcreds.database
             )
             cursor = conn.cursor()
-            cursor.execute("SELECT id FROM user_sessions WHERE login_token = ?", [login_token])
+            cursor.execute("SELECT id FROM user_sessions WHERE loginToken = ?", [loginToken])
             userId = cursor.fetchone()[0]
             if userId != None:
                 cursor.execute("SELECT id, content FROM one_time_tasks WHERE userId = ?", [userId])
@@ -423,7 +425,7 @@ def one_time_tasks():
         try:
             taskId = request.json.get("taskId")    #each taskId corresponds to only one user
             content = request.json.get("content")
-            # login_token = request.json.get("login_token")    #users can see and edit only their own tasks
+            # loginToken = request.json.get("loginToken")    #users can see and edit only their own tasks
             conn = mariadb.connect(
                 host = dbcreds.host, 
                 port = dbcreds.port, 
@@ -465,7 +467,7 @@ def one_time_tasks():
 
     elif request.method == "DELETE":    #one-time
         try:
-            login_token = request.json.get("login_token")
+            loginToken = request.json.get("loginToken")
             taskId = request.json.get("taskId")
             conn = mariadb.connect(
                 host = dbcreds.host, 
@@ -475,7 +477,7 @@ def one_time_tasks():
                 database = dbcreds.database
             )
             cursor = conn.cursor()
-            cursor.execute("SELECT id FROM user_sessions WHERE login_token = ?", [login_token])
+            cursor.execute("SELECT id FROM user_sessions WHERE loginToken = ?", [loginToken])
             userId = cursor.fetchone()[0]
             cursor.execute("DELETE FROM one_time_tasks WHERE id = ? AND userId = ?", [taskId, userId])
             conn.commit()
